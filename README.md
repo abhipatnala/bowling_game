@@ -1,24 +1,12 @@
-# README
+# Bowling game API
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+#How to run app locally
+- clone this repo
+- navigate to this repo folder
+- run rake db:migrate
+- start rails server using rails s
 
-Things you may want to cover:
-
-* Ruby version
-
-* System dependencies
-
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+#API end points
+ - POST api/v1/create (to create new game)
+ - PUT api/v1/roll_ball , payload is { game_id: game_id, knocked_pins: number_of_pins } 
+ - GET api/v1/score , params is { game_id: game_id }
