@@ -1,11 +1,14 @@
 class Api::V1::GamesController < ApplicationController
 
+ before_action :game_exists?, only: [:roll_ball, :get_score]
+
   DEFAULT_FRAME = {
-    is_strike: false,
-    is_spare: false,
+    strike: false,
+    spare: false,
     throws: 2,
     score: 0
   }
+
   def create
     frames =  []
     10.times { |i| frames << {frame_id: i}.merge(DEFAULT_FRAME) }
@@ -17,7 +20,7 @@ class Api::V1::GamesController < ApplicationController
   end
 
   def roll_ball
-    current_game.record_roll(knocked_pins)
+    render json: current_game.record_roll(knocked_pins)
   end
 
   def get_score
@@ -43,5 +46,11 @@ class Api::V1::GamesController < ApplicationController
 
   def current_game
     @current_game ||= Game.find_by_id(game_id)
+  end
+
+  def game_exists?
+    if current_game.nil?
+      render json: { errors: ["No game exists"]}
+    end
   end
 end

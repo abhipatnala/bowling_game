@@ -2,27 +2,16 @@ class Game < ApplicationRecord
   serialize :frames, Array
 
   def record_roll knocked_pins
-    frame_index = frames.index{|frame| frame[:throws] > 0 }
-    frame = frames[frame_index]
+    frame = frames.find {|frame| frame[:throws] > 0 }
 
-    if frame_index == 9 and frame[:throws] == 2 and frame[:score] == 10
-      if frames[8][:is_strike]
-        frames[8][:score] += knocked_pins
-      end
-    elsif frame_index == 9 and frame[:throws] == 1 and spare_or_strike(frame)
-    else
-       update_previous_frames(frame_index, knocked_pins)
-    end
+    return { errors: "Game is completed" } if frame.nil?
 
-    if knocked_pins == 10 && frame[:throws] == 2
-      mark_strike(frames[frame_index])
-    elsif frames[frame_index][:score] + knocked_pins == 10
-      mark_spare(frames[frame_index])
-    else
-      frames[frame_index][:score] += knocked_pins
-      frames[frame_index][:throws] -= 1
-    end
+    calculate_previous_frame_scores(knocked_pins, frame)
+    calculate_frame_score(knocked_pins, frame)
+
     save
+
+    return { message: "Thats a great ball roll" }
   end
 
   def total_score
@@ -33,21 +22,21 @@ class Game < ApplicationRecord
 
   def mark_strike frame
     if frame[:frame_id] == 9
-      handle_last_frame_strike(frame)
+      handle_tenth_frame_strike(frame)
     else
       frame[:throws] = 0
-      frame[:is_strike] = true
+      frame[:strike] = true
       frame[:score] = 10
     end
   end
 
   def mark_spare frame
     frame[:throws] = frame[:frame_id] == 9 ? 1 : 0
-    frame[:is_spare] = true
+    frame[:spare] = true
     frame[:score] = 10
   end
 
-  def handle_last_frame_strike frame
+  def handle_tenth_frame_strike frame
     if frame[:score] == 10 && frame[:throws] == 1
       frame[:throws] = 0
       frame[:score] += 10
@@ -60,29 +49,73 @@ class Game < ApplicationRecord
     elsif frame[:score] == 0
       frame[:throws] = 2
       frame[:score] = 10
-      frame[:is_strike] = true
+      frame[:strike] = true
+    end
+  end
+
+  def calculate_previous_frame_scores(knocked_pins, frame)
+    if strike_on_first_throw_in_tenth_frame? frame
+      if frames[8][:strike]
+        frames[8][:score] += knocked_pins
+      end
+    else
+      unless skip_update_of_previous_frames? frame
+        update_previous_frames(frame[:frame_id], knocked_pins)
+      end
     end
   end
 
   def update_previous_frames index, knocked_pins
-    if index-1 > -1
-      previous_frame = frames[index-1]
-      if spare_or_strike(previous_frame) && frames[index][:throws] == 2
-        previous_frame[:score] += knocked_pins
-      elsif previous_frame[:is_strike] && frames[index][:throws] == 1
-        previous_frame[:score] += knocked_pins
-      end
-    end
+    update_first_previous(index, knocked_pins) if index-1 > -1
 
-    if index-2 > -1
-      second_previous = frames[index-2]
-      if previous_frame[:is_strike] && second_previous[:is_strike]
-        second_previous[:score] += knocked_pins
-      end
+    update_second_previous(index, knocked_pins) if index-2 > -1
+  end
+
+  def update_first_previous(index, knocked_pins)
+    previous_frame = frames[index-1]
+    if spare_or_strike(previous_frame) && frames[index][:throws] == 2
+      previous_frame[:score] += knocked_pins
+    elsif previous_frame[:strike] && frames[index][:throws] == 1
+      previous_frame[:score] += knocked_pins
+    end
+  end
+
+  def update_second_previous(index, knocked_pins)
+    second_previous = frames[index-2]
+    previous_frame = frames[index-1]
+    if previous_frame[:strike] && second_previous[:strike]
+      second_previous[:score] += knocked_pins
+    end
+  end
+
+  def calculate_frame_score(knocked_pins, frame)
+    if is_strike?(knocked_pins, frame[:throws])
+      mark_strike(frame)
+    elsif is_spare?(knocked_pins, frame[:score])
+      mark_spare(frame)
+    else
+      frame[:score] += knocked_pins
+      frame[:throws] -= 1
     end
   end
 
   def spare_or_strike frame
-    frame[:is_spare] || frame[:is_strike]
+    frame[:spare] || frame[:strike]
+  end
+
+  def is_strike?(knocked_pins, throws)
+    knocked_pins == 10 && throws == 2
+  end
+
+  def is_spare?(knocked_pins, current_score)
+    knocked_pins + current_score == 10
+  end
+
+  def strike_on_first_throw_in_tenth_frame? frame
+    frame[:frame_id] == 9 && frame[:throws] == 2 && frame[:score] == 10
+  end
+
+  def skip_update_of_previous_frames? frame
+    frame[:frame_id] == 9 && frame[:throws] == 1 && spare_or_strike(frame)
   end
 end
