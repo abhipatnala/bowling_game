@@ -60,29 +60,29 @@ class Game < ApplicationRecord
       end
     else
       unless skip_update_of_previous_frames? frame
-        update_previous_frames(frame[:frame_id], knocked_pins)
+        update_previous_frames(frame, knocked_pins)
       end
     end
   end
 
-  def update_previous_frames index, knocked_pins
-    update_first_previous(index, knocked_pins) if index-1 > -1
+  def update_previous_frames frame, knocked_pins
+    update_first_previous(frame, knocked_pins) if frame[:frame_id]-1 > -1
 
-    update_second_previous(index, knocked_pins) if index-2 > -1
+    update_second_previous(frame, knocked_pins) if frame[:frame_id]-2 > -1
   end
 
-  def update_first_previous(index, knocked_pins)
-    previous_frame = frames[index-1]
-    if spare_or_strike(previous_frame) && frames[index][:throws] == 2
+  def update_first_previous(frame, knocked_pins)
+    previous_frame = frames[frame[:frame_id]-1]
+    if spare_or_strike(previous_frame) && frame[:throws] == 2
       previous_frame[:score] += knocked_pins
-    elsif previous_frame[:strike] && frames[index][:throws] == 1
+    elsif previous_frame[:strike] && frame[:throws] == 1
       previous_frame[:score] += knocked_pins
     end
   end
 
-  def update_second_previous(index, knocked_pins)
-    second_previous = frames[index-2]
-    previous_frame = frames[index-1]
+  def update_second_previous(frame, knocked_pins)
+    second_previous = frames[frame[:frame_id]-2]
+    previous_frame = frames[frame[:frame_id]-1]
     if previous_frame[:strike] && second_previous[:strike]
       second_previous[:score] += knocked_pins
     end
